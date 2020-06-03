@@ -1,7 +1,8 @@
-const express = require('express');
-const {{camelCase operation_name}} = require('../services/{{operation_name}}');
+import { Router, Request, Response, NextFunction } from "express";
+import { Service } from "../services/Service";
+import { diContainer } from "../diContainer";
 
-const router = new express.Router();
+const router = Router();
 
 {{#each headOperation}}
   {{#each this.path}}
@@ -11,8 +12,9 @@ const router = new express.Router();
  * {{{this}}}
  {{/each}}
  */
-router.{{@key}}('{{../../subresource}}', async (req, res, next) => {
-  const options = {
+router.{{@key}}('{{../../subresource}}', async (req: Request, res: Response, next: NextFunction) => {
+  const optionssss = {
+    '{{../../path_name}}'
   {{#if ../requestBody}}
   body: req.body{{#compare (lookup ../parameters 'length') 0 operator = '>' }},{{/compare}}
   {{/if}}
@@ -59,17 +61,27 @@ router.{{@key}}('{{../../subresource}}', async (req, res, next) => {
  * {{{this}}}
  {{/each}}
  */
-router.{{@key}}('{{../../subresource}}', async (req, res, next) => {
-  const options = {
-    {{#if ../requestBody}}
-    body: req.body{{#compare (lookup ../parameters 'length') 0 operator = '>' }},{{/compare}}
-    {{/if}}
+router.{{@key}}('{{../../subresource}}', async (req: Request, res: Response, next: NextFunction) => {
+
+  {{#if ../requestBody}}
+  {{#with ../requestBody.content}}
+    {{#with [application/json]}}
+  const {{camelCase schema.title}} : Components.Schemas.{{schema.title}} = req.body;
+    {{/with}}
+  {{/with}}
+  {{/if}}
+
     {{#each ../parameters}}
       {{#equal this.in "query"}}
-    {{{quote ../name}}}: req.query['{{../name}}']{{#unless @last}},{{/unless}}
+        {{#equal ../schema.type "object"}}
+    const {{../name}} : Components.Schemas.{{../schema.title}} = req.query.{{../name}};
+        {{else}}
+    const {{../name}} = req.query.{{../name}} as {{../schema.type}}{{#unless ../required}} | null{{/unless}};
+        {{/equal}}
       {{/equal}}
       {{#equal this.in "path"}}
     {{{quote ../name}}}: req.params['{{../name}}']{{#unless @last}},{{/unless}}
+    const {{../name}}: {{../schema.type}} = req.params.{{../name}};
       {{/equal}}
       {{#equal this.in "header"}}
     {{{quote ../name}}}: req.header['{{../name}}']{{#unless @last}},{{/unless}}
@@ -80,28 +92,29 @@ router.{{@key}}('{{../../subresource}}', async (req, res, next) => {
         {{/equal}}
       {{/match}}
     {{/each}}
-  };
+  // };
 
-  try {
-    const result = await {{camelCase ../../../operation_name}}.{{../operationId}}(options);
+  const service = diContainer.resolve<Service>(Service);
+
+  // try {
     {{#ifNoSuccessResponses ../responses}}
     res.status(200).send(result.data);
     {{else}}
-    res.status(result.status || 200).send(result.data);
+    {{#with ../responses}}
+      {{#with [200]}}
+        {{#with content}}
+          {{#with [application/json]}}
+    const {{camelCase schema.title}} : Components.Schemas.{{schema.title}} = await service.function();
+    res.status(200).send({{camelCase schema.title}});
+          {{/with}}
+        {{/with}}
+      {{/with}}
+    {{/with}}
+
     {{/ifNoSuccessResponses}}
-  } catch (err) {
-    {{#ifNoErrorResponses ../responses}}
-    return res.status(500).send({
-      status: 500,
-      error: 'Server Error'
-    });
-    {{else}}
-    next(err);
-    {{/ifNoErrorResponses}}
-  }
 });
 
     {{/validMethod}}
   {{/each}}
 {{/each}}
-module.exports = router;
+export { router };
