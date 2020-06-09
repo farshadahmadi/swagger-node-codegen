@@ -74,14 +74,13 @@ router.{{@key}}('{{../../subresource}}', async (req: Request, res: Response, nex
     {{#each ../parameters}}
       {{#equal this.in "query"}}
         {{#equal ../schema.type "object"}}
-    const {{../name}} : Components.Schemas.{{../schema.title}} = req.query.{{../name}};
+  const {{../name}} : Components.Schemas.{{../schema.title}} = req.query.{{../name}};
         {{else}}
-    const {{../name}} = req.query.{{../name}} as {{../schema.type}}{{#unless ../required}} | null{{/unless}};
+  const {{../name}} = req.query.{{../name}} as {{../schema.type}}{{#unless ../required}} | null{{/unless}};
         {{/equal}}
       {{/equal}}
       {{#equal this.in "path"}}
-    {{{quote ../name}}}: req.params['{{../name}}']{{#unless @last}},{{/unless}}
-    const {{../name}}: {{../schema.type}} = req.params.{{../name}};
+  const {{../name}}: {{convertDataType ../schema.type}} = req.params.{{../name}};
       {{/equal}}
       {{#equal this.in "header"}}
     {{{quote ../name}}}: req.header['{{../name}}']{{#unless @last}},{{/unless}}
@@ -92,11 +91,9 @@ router.{{@key}}('{{../../subresource}}', async (req: Request, res: Response, nex
         {{/equal}}
       {{/match}}
     {{/each}}
-  // };
 
   const service = diContainer.resolve<Service>(Service);
 
-  // try {
     {{#ifNoSuccessResponses ../responses}}
     res.status(200).send(result.data);
     {{else}}
@@ -104,8 +101,14 @@ router.{{@key}}('{{../../subresource}}', async (req: Request, res: Response, nex
       {{#with [200]}}
         {{#with content}}
           {{#with [application/json]}}
-    const {{camelCase schema.title}} : Components.Schemas.{{schema.title}} = await service.function();
-    res.status(200).send({{camelCase schema.title}});
+            {{#equal schema.type "array"}}
+  const {{camelCase ../schema.items.title}}s : Components.Schemas.{{../schema.items.title}}[] = await service.function();
+  res.status(200).send({{camelCase ../schema.items.title}}s);
+            {{else}}
+  const {{camelCase ../schema.title}} : Components.Schemas.{{../schema.title}} = await service.function();
+  res.status(200).send({{camelCase ../schema.title}});
+            {{/equal}}
+
           {{/with}}
         {{/with}}
       {{/with}}
